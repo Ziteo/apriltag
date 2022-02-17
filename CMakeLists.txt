@@ -165,8 +165,10 @@ endif (NOT Python3_NOT_FOUND AND NOT Numpy_NOT_FOUND AND PYTHONLIBS_FOUND AND BU
 
 # Examples
 # apriltag_demo
-add_executable(apriltag_demo example/apriltag_demo.c)
-target_link_libraries(apriltag_demo apriltag)
+if (NOT MSVC)
+    add_executable(apriltag_demo example/apriltag_demo.c)
+    target_link_libraries(apriltag_demo apriltag)
+endif(NOT MSVC)
 
 # opencv_demo
 find_package(OpenCV COMPONENTS core imgproc videoio highgui QUIET)
