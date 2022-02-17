@@ -46,7 +46,8 @@ add_library(${PROJECT_NAME} ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
 if (MSVC)
     # FindThreads will not find pthread.h with MSVC
     # winmm is necessary for __imp_timeGetTime
-    find_library(PTHREAD_LIBRARIES NAMES pthreads)
+    find_package(pthreads4w REQUIRED)
+    # find_library(PTHREAD_LIBRARIES NAMES pthreads)
     target_link_libraries(${PROJECT_NAME} ${PTHREAD_LIBRARIES} winmm)
 else()
     find_package(Threads REQUIRED)
