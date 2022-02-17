@@ -168,6 +168,10 @@ endif (NOT Python3_NOT_FOUND AND NOT Numpy_NOT_FOUND AND PYTHONLIBS_FOUND AND BU
 if (NOT MSVC)
     add_executable(apriltag_demo example/apriltag_demo.c)
     target_link_libraries(apriltag_demo apriltag)
+    # install example programs
+    install(TARGETS apriltag_demo RUNTIME DESTINATION bin)
+else()
+    message(WARNING "Windows system detected: Not building example")
 endif(NOT MSVC)
 
 # opencv_demo
@@ -180,6 +184,3 @@ if(OpenCV_FOUND)
 else()
     message(WARNING "OpenCV not found: Not building demo")
 endif(OpenCV_FOUND)
-
-# install example programs
-install(TARGETS apriltag_demo RUNTIME DESTINATION bin)
