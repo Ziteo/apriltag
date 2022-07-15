@@ -8,7 +8,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(ASAN "Use AddressSanitizer for debug builds to detect memory issues" OFF)
 
 if (ASAN)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} \
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} \
         -fsanitize=address \
         -fsanitize=bool \
         -fsanitize=bounds \
@@ -40,16 +40,11 @@ aux_source_directory(common COMMON_SRC)
 set(APRILTAG_SRCS apriltag.c apriltag_pose.c apriltag_quad_thresh.c)
 
 # Library
-file(GLOB TAG_FILES ${PROJECT_SOURCE_DIR}/tag*.c)
+file(GLOB TAG_FILES ${CMAKE_CURRENT_SOURCE_DIR}/tag*.c)
 add_library(${PROJECT_NAME} ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
 
 if (MSVC)
-    # FindThreads will not find pthread.h with MSVC
-    # winmm is necessary for __imp_timeGetTime
-    find_package(pthreads4w REQUIRED)
-    # find_library(PTHREAD_LIBRARIES NAMES pthreads)
-    target_link_libraries(${PROJECT_NAME} ${pthreads4w_LIBRARIES} winmm)
-    target_include_directories(${PROJECT_NAME} PUBLIC  ${pthreads4w_INCLUDE_DIR})
+    add_compile_definitions("_CRT_SECURE_NO_WARNINGS")
 else()
     find_package(Threads REQUIRED)
     target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads m)
@@ -66,7 +61,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 
 # install header file hierarchy
-file(GLOB HEADER_FILES RELATIVE ${PROJECT_SOURCE_DIR} *.h common/*.h)
+file(GLOB HEADER_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.h common/*.h)
 list(REMOVE_ITEM HEADER_FILES apriltag_detect.docstring.h apriltag_py_type.docstring.h)
 
 foreach(HEADER ${HEADER_FILES})
@@ -136,21 +131,22 @@ endif(BUILD_PYTHON_WRAPPER)
 
 if (NOT Python3_NOT_FOUND AND NOT Numpy_NOT_FOUND AND PYTHONLIBS_FOUND AND BUILD_PYTHON_WRAPPER)
     # TODO deal with both python2/3
-    execute_process(COMMAND python3 ${PROJECT_SOURCE_DIR}/python_build_flags.py OUTPUT_VARIABLE PY_OUT)
+    execute_process(COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/python_build_flags.py OUTPUT_VARIABLE PY_OUT)
     set(PY_VARS CFLAGS LDFLAGS LINKER EXT_SUFFIX)
     cmake_parse_arguments(PY "" "${PY_VARS}" "" ${PY_OUT})
     separate_arguments(PY_CFLAGS)
+    list(REMOVE_ITEM PY_CFLAGS -flto)
     separate_arguments(PY_LDFLAGS)
 
     foreach(X detect py_type)
     add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/apriltag_${X}.docstring.h
-        COMMAND < ${PROJECT_SOURCE_DIR}/apriltag_${X}.docstring sed 's/\"/\\\\\"/g\; s/^/\"/\; s/$$/\\\\n\"/\;' > apriltag_${X}.docstring.h
+        COMMAND < ${CMAKE_CURRENT_SOURCE_DIR}/apriltag_${X}.docstring sed 's/\"/\\\\\"/g\; s/^/\"/\; s/$$/\\\\n\"/\;' > apriltag_${X}.docstring.h
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
     endforeach()
 
     add_custom_command(OUTPUT apriltag_pywrap.o
-        COMMAND ${CMAKE_C_COMPILER} ${PY_CFLAGS} -I${PROJECT_BINARY_DIR} -c -o apriltag_pywrap.o ${PROJECT_SOURCE_DIR}/apriltag_pywrap.c
-        DEPENDS ${PROJECT_SOURCE_DIR}/apriltag_pywrap.c ${PROJECT_BINARY_DIR}/apriltag_detect.docstring.h ${PROJECT_BINARY_DIR}/apriltag_py_type.docstring.h)
+        COMMAND ${CMAKE_C_COMPILER} ${PY_CFLAGS} -I${PROJECT_BINARY_DIR} -c -o apriltag_pywrap.o ${CMAKE_CURRENT_SOURCE_DIR}/apriltag_pywrap.c
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/apriltag_pywrap.c ${PROJECT_BINARY_DIR}/apriltag_detect.docstring.h ${PROJECT_BINARY_DIR}/apriltag_py_type.docstring.h)
     add_custom_command(OUTPUT apriltag${PY_EXT_SUFFIX}
         COMMAND ${PY_LINKER} ${PY_LDFLAGS} -Wl,-rpath,lib apriltag_pywrap.o $<TARGET_FILE:apriltag> -o apriltag${PY_EXT_SUFFIX}
         DEPENDS ${PROJECT_NAME} apriltag_pywrap.o)
@@ -162,12 +158,11 @@ string(STRIP ${PY_DEST} PY_DEST)
 install(FILES ${PROJECT_BINARY_DIR}/apriltag${PY_EXT_SUFFIX} DESTINATION ${PY_DEST})
 endif (NOT Python3_NOT_FOUND AND NOT Numpy_NOT_FOUND AND PYTHONLIBS_FOUND AND BUILD_PYTHON_WRAPPER)
 
-
 # Examples
 # apriltag_demo
 if (NOT MSVC)
     add_executable(apriltag_demo example/apriltag_demo.c)
-    target_link_libraries(apriltag_demo apriltag)
+    target_link_libraries(apriltag_demo ${PROJECT_NAME})
     # install example programs
     install(TARGETS apriltag_demo RUNTIME DESTINATION bin)
 else()
